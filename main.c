@@ -7,6 +7,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "ascii.c"
+
 #define WALL '$'
 #define FOOD '*'
 #define POWERUP 'O'
@@ -18,8 +20,6 @@
 #define starty 4
 
 #define FRAME_RATE 100000
-
-
 
 
 char** g_save_map;
@@ -46,7 +46,6 @@ typedef struct{
 } state;
 
 typedef struct{
-    char name;
     vec scatter_square;
     /*
         0: Scatter
@@ -177,7 +176,6 @@ void reset_level(state* game, pacman* pac, ghost* ghosts){
 void setup_game(state* game, pacman* pac, ghost* ghosts){
 
     int i, j, k=0, z=0, tele_ind = 0;
-    char ghost_names[4] = {'a', 'b', 'c', 'd'};
     for(i=0;i<game->height;++i){
         for(j=0;j<game->width;++j){
             if(game->map[i][j] == 'p'){
@@ -201,7 +199,6 @@ void setup_game(state* game, pacman* pac, ghost* ghosts){
                 ghosts[k].pos.col = j;
                 ghosts[k].spawn = ghosts[k].pos;
                 _calc_ghost_opts(game, ghosts+k);
-                ghosts[k].name = ghost_names[k];
 
                 ++k;
                 game->map[i][j] = '-';
@@ -234,24 +231,50 @@ void setup_game(state* game, pacman* pac, ghost* ghosts){
 
 void print_pacman(int y, int x, pacman* pac){
     // change based on direction
-    char left[6] = {'}', ')', '>', '-', '>', ')'};
-    char right[6] = {'{', '(', '<', '-', '<', '('};
-    char up[2] = {'V', '|'};
-    char down[2] = {'^', '|'};
+    int i, num_lines = 3;
+    const char** p_frame;
+    // center the 3x6 pac drawing
+    y-=1; x-=2;
 
-    attron(COLOR_PAIR(6));
-
-    if(pac->dir.col == 1){
-        mvaddch(y, x, right[g_pac_frame]);
-    }else if(pac->dir.col == -1){
-        mvaddch(y, x, left[g_pac_frame]);
-    }else if(pac->dir.row == 1){
-        mvaddch(y, x, down[g_pac_frame%2]);
-    }else if(pac->dir.row == -1){
-        mvaddch(y, x, up[g_pac_frame%2]);
+    if (pac->dir.col == 1) {
+        p_frame = right_frames[g_pac_frame % 3];
+    } else if (pac->dir.col == -1) {
+        p_frame = left_frames[g_pac_frame % 3];
+    } else if (pac->dir.row == 1) {
+        p_frame = down_frames[g_pac_frame % 3];
+    } else if (pac->dir.row == -1) {
+        p_frame = up_frames[g_pac_frame % 3];
+        num_lines = 4;
     }
 
+    attron(COLOR_PAIR(6));
+    for(i=0;i<3;++i){
+        mvprintw(y + i, x, "%s", p_frame[i]);
+    }
     attroff(COLOR_PAIR(6));
+}
+
+void print_ghost(int y, int x, ghost* g) {
+    int i;
+    int rd = g->pos.row - g->last_pos.row;
+    int cd = g->pos.col - g->last_pos.col;
+
+    // center the 3x6 ghost drawing
+    y-=1; x-=2;
+
+    const char** g_frame;
+    if (cd > 0) {
+        g_frame = (g->mode == 2) ? right_frightened : right_normal;
+    } else if (cd < 0) {
+        g_frame = (g->mode == 2) ? left_frightened : left_normal;
+    }else{
+        // up and down
+        g_frame = (g->mode == 2) ? right_frightened : right_normal;
+    }
+
+    for(i=0;i<3;++i){
+        mvprintw(y + i, x, "%s", g_frame[i]);
+    }
 }
 
 void update_display(state* game, pacman* pac, ghost* ghosts){
@@ -270,7 +293,7 @@ void update_display(state* game, pacman* pac, ghost* ghosts){
 
     for(i=0;i<NUM_GHOSTS;++i){
         attron(COLOR_PAIR(i+1));
-        mvaddch(starty+3*ghosts[i].pos.row, startx+6*ghosts[i].pos.col, ghosts[i].name);
+        print_ghost(starty+3*ghosts[i].pos.row, startx+6*ghosts[i].pos.col, ghosts+i);
         attroff(COLOR_PAIR(i+1));
     }
 
@@ -308,6 +331,7 @@ void run_death(state* game, pacman* pac, ghost* ghosts){
     g_release_ghost = 0;
     g_lvl_stage = 0;
 
+    werase(win);
     update_display(game, pac, ghosts);
     wrefresh(win);
 
@@ -322,10 +346,10 @@ void init_ghost_colors(){
 }
 
 void scared_ghosts(){
-    init_pair(1, COLOR_RED, COLOR_BLUE); // Ghost 1
-    init_pair(2, COLOR_MAGENTA, COLOR_BLUE); // Ghost 2
-    init_pair(3, COLOR_CYAN, COLOR_BLUE); // Ghost 3
-    init_pair(4, COLOR_GREEN, COLOR_BLUE); // Ghost 4
+    init_pair(1, COLOR_BLUE, COLOR_BLACK); // Ghost 1
+    init_pair(2, COLOR_BLUE, COLOR_BLACK); // Ghost 2
+    init_pair(3, COLOR_BLUE, COLOR_BLACK); // Ghost 3
+    init_pair(4, COLOR_BLUE, COLOR_BLACK); // Ghost 4
 }
 
 void game_over_scrn(state* game, ghost* ghosts){
@@ -529,7 +553,7 @@ void run_game_for_time(state* game, pacman* pac, ghost* ghosts, int time){
         }
         update_frame(game, pac, ghosts, sent_input);
         ++g_pac_frame;
-        if(g_pac_frame>=6) g_pac_frame = 0;
+        if(g_pac_frame>=100) g_pac_frame = 0;
 
         werase(win);
         update_display(game, pac, ghosts);
