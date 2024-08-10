@@ -346,10 +346,10 @@ void init_ghost_colors(){
 }
 
 void scared_ghosts(){
-    init_pair(1, COLOR_BLUE, COLOR_BLACK); // Ghost 1
-    init_pair(2, COLOR_BLUE, COLOR_BLACK); // Ghost 2
-    init_pair(3, COLOR_BLUE, COLOR_BLACK); // Ghost 3
-    init_pair(4, COLOR_BLUE, COLOR_BLACK); // Ghost 4
+    int i;
+    for(i=1;i<=NUM_GHOSTS;++i){
+        init_pair(i, COLOR_BLUE, COLOR_BLACK);
+    }
 }
 
 void game_over_scrn(state* game, ghost* ghosts){
